@@ -43,7 +43,7 @@ use datafusion::{
     physical_plan::{
         aggregates::{AggregateMode as DFAggregateMode, PhysicalGroupBy},
         filter::FilterExec,
-        joins::{utils::JoinFilter, HashJoinExec, PartitionMode, SortMergeJoinExec},
+        joins::{HashJoinExec, PartitionMode, SortMergeJoinExec},
         limit::LocalLimitExec,
         projection::ProjectionExec,
         sorts::sort::SortExec,
@@ -51,6 +51,7 @@ use datafusion::{
     },
     prelude::SessionContext,
 };
+use datafusion::physical_plan::joins::utils::JoinFilter;
 use datafusion_common::{
     tree_node::{Transformed, TransformedResult, TreeNode, TreeNodeRecursion, TreeNodeRewriter},
     JoinType as DFJoinType, ScalarValue,
@@ -59,6 +60,7 @@ use datafusion_expr::expr::find_df_window_func;
 use datafusion_expr::{ScalarUDF, WindowFrame, WindowFrameBound, WindowFrameUnits};
 use datafusion_physical_expr::window::WindowExpr;
 use datafusion_physical_expr_common::aggregate::create_aggregate_expr;
+use futures::TryFutureExt;
 use itertools::Itertools;
 use jni::objects::GlobalRef;
 use num::{BigInt, ToPrimitive};
@@ -110,6 +112,9 @@ use datafusion_comet_proto::{
 use datafusion_comet_spark_expr::{
     Abs, Cast, DateTruncExpr, HourExpr, IfExpr, MinuteExpr, SecondExpr, TimestampTruncExpr,
 };
+
+use sequila_core::physical_planner::joins::interval_join::{IntervalJoinExec, parse_intervals};
+use sequila_core::session_context::Algorithm;
 
 // For clippy error on type_complexity.
 type ExecResult<T> = Result<T, ExecutionError>;
@@ -969,6 +974,33 @@ impl PhysicalPlanner {
                 )?);
 
                 Ok((scans, join))
+            }
+            OpStruct::IntervalJoin(join) => {
+
+                let (join_params, scans) = self.parse_join_parameters(
+                    inputs,
+                    children,
+                    &join.left_join_keys,
+                    &join.right_join_keys,
+                    join.join_type,
+                    &join.condition,
+                )?;
+                let Some(a) = &join_params.join_filter.clone();
+
+                let Some(intervals) = parse_intervals(a);
+                let interval_join = Arc::new(IntervalJoinExec::try_new(
+                    join_params.left,
+                    join_params.right,
+                    join_params.join_on,
+                    join_params.join_filter,
+                    intervals,
+                    &join_params.join_type,
+                    None, //FIXME:: check that!
+                    PartitionMode::Partitioned,
+                    false,
+                    Algorithm::Coitrees, //FIXME:: check that!
+                )?);
+                Ok((scans, interval_join as Arc<dyn ExecutionPlan>))
             }
             OpStruct::HashJoin(join) => {
                 let (join_params, scans) = self.parse_join_parameters(
