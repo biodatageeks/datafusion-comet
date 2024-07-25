@@ -23,6 +23,7 @@ use arrow_schema::{DataType, Field, Schema, TimeUnit};
 use datafusion::functions_aggregate::bit_and_or_xor::{bit_and_udaf, bit_or_udaf, bit_xor_udaf};
 use datafusion::functions_aggregate::count::count_udaf;
 use datafusion::functions_aggregate::sum::sum_udaf;
+use datafusion::physical_plan::joins::utils::JoinFilter;
 use datafusion::physical_plan::windows::BoundedWindowAggExec;
 use datafusion::physical_plan::InputOrderMode;
 use datafusion::{
@@ -51,7 +52,6 @@ use datafusion::{
     },
     prelude::SessionContext,
 };
-use datafusion::physical_plan::joins::utils::JoinFilter;
 use datafusion_common::{
     tree_node::{Transformed, TransformedResult, TreeNode, TreeNodeRecursion, TreeNodeRewriter},
     JoinType as DFJoinType, ScalarValue,
@@ -113,7 +113,7 @@ use datafusion_comet_spark_expr::{
     Abs, Cast, DateTruncExpr, HourExpr, IfExpr, MinuteExpr, SecondExpr, TimestampTruncExpr,
 };
 
-use sequila_core::physical_planner::joins::interval_join::{IntervalJoinExec, parse_intervals};
+use sequila_core::physical_planner::joins::interval_join::{parse_intervals, IntervalJoinExec};
 use sequila_core::session_context::Algorithm;
 
 // For clippy error on type_complexity.
@@ -976,7 +976,6 @@ impl PhysicalPlanner {
                 Ok((scans, join))
             }
             OpStruct::IntervalJoin(join) => {
-
                 let (join_params, scans) = self.parse_join_parameters(
                     inputs,
                     children,
@@ -985,9 +984,8 @@ impl PhysicalPlanner {
                     join.join_type,
                     &join.condition,
                 )?;
-                let Some(a) = &join_params.join_filter.clone();
-
-                let Some(intervals) = parse_intervals(a);
+                let filters = join_params.join_filter.as_ref().expect("must have filter");
+                let intervals = parse_intervals(filters).expect("must have intervals");
                 let interval_join = Arc::new(IntervalJoinExec::try_new(
                     join_params.left,
                     join_params.right,

@@ -19,17 +19,19 @@
 
 package org.apache.comet.exec
 
-import org.apache.spark.sql.types.{IntegerType, StringType, StructField, StructType}
-import org.apache.spark.sql.{CometTestBase, Row, SequilaSession}
 import org.biodatageeks.sequila.rangejoins.IntervalTree.IntervalTreeJoinStrategyOptim
 
+import org.apache.spark.sql.CometTestBase
+import org.apache.spark.sql.types.{IntegerType, StringType, StructField, StructType}
+
 class SeQuiLaSuite extends CometTestBase {
-  val schema1 = StructType(
+  val schema1: StructType = StructType(
     Seq(StructField("start1", IntegerType, nullable = false), StructField("end1", IntegerType)))
-  val schema2 = StructType(
+  val schema2: StructType = StructType(
     Seq(StructField("start2", IntegerType, nullable = false), StructField("end2", IntegerType)))
-  val schema3 = StructType(
-    Seq(StructField("chr1", StringType, nullable = false),
+  val schema3: StructType = StructType(
+    Seq(
+      StructField("chr1", StringType, nullable = false),
       StructField("start1", IntegerType, nullable = false),
       StructField("end1", IntegerType, nullable = false)))
 
@@ -40,13 +42,12 @@ class SeQuiLaSuite extends CometTestBase {
     ds3.createOrReplaceTempView("s3")
     ds4.createOrReplaceTempView("s4")
 
-    spark.experimental.extraStrategies = new IntervalTreeJoinStrategyOptim(
-      spark) :: Nil
+    spark.experimental.extraStrategies = new IntervalTreeJoinStrategyOptim(spark) :: Nil
     spark.sparkContext.setLogLevel("INFO")
     val sqlQuery =
       "select s3.chr1 as s3_chr,s3.start1 as s3_start1, s3.*,s4.* from s4 JOIN s3 ON ( s3.chr1=s4.chr1 and s3.end1>=s4.start1 and s3.start1<=s4.end1)"
     spark.sql(sqlQuery).explain(true)
-    assert( spark.sql(sqlQuery).count() == 16)
+    assert(spark.sql(sqlQuery).count() == 16)
 
   }
 }
