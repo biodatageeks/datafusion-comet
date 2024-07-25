@@ -45,7 +45,7 @@ class SeQuiLaSuite extends CometTestBase {
     spark.experimental.extraStrategies = new IntervalTreeJoinStrategyOptim(spark) :: Nil
     spark.sparkContext.setLogLevel("INFO")
     val sqlQuery =
-      "select s3.chr1 as s3_chr,s3.start1 as s3_start1, s3.*,s4.* from s4 JOIN s3 ON ( s3.chr1=s4.chr1 and s3.end1>=s4.start1 and s3.start1<=s4.end1)"
+      "select s3.chr1 as s3_chr,s3.start1 as s3_start1, s3.*,s4.* from s4 JOIN s3 WHERE s3.chr1=s4.chr1 and s3.end1>=s4.start1 and s3.start1<=s4.end1"
     spark.sql(sqlQuery).explain(true)
     assert(spark.sql(sqlQuery).count() == 16)
 

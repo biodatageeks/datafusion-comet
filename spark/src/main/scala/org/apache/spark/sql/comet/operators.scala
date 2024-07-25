@@ -748,40 +748,36 @@ case class CometHashJoinExec(
     CometMetricNode.hashJoinMetrics(sparkContext)
 }
 
-case class CometBroadcastHashJoinExec(
-    override val nativeOp: Operator,
-    override val originalPlan: SparkPlan,
-    override val output: Seq[Attribute],
-    override val outputOrdering: Seq[SortOrder],
-    leftKeys: Seq[Expression],
-    rightKeys: Seq[Expression],
-    joinType: JoinType,
-    condition: Option[Expression],
-    buildSide: BuildSide,
-    override val left: SparkPlan,
-    override val right: SparkPlan,
-    override val serializedPlanOpt: SerializedPlan)
-    extends CometBinaryExec
-    with ShimCometBroadcastHashJoinExec {
+trait CometBroadcastHashLikeJoinExec extends CometBinaryExec with ShimCometBroadcastHashJoinExec {
+
+  def nativeOp: Operator
+
+  def originalPlan: SparkPlan
+
+  def output: Seq[Attribute]
+
+  def outputOrdering: Seq[SortOrder]
+
+  def leftKeys: Seq[Expression]
+
+  def rightKeys: Seq[Expression]
+
+  def joinType: JoinType
+
+  def condition: Option[Expression]
+
+  def buildSide: BuildSide
+
+  def left: SparkPlan
+
+  def right: SparkPlan
+
+  def serializedPlanOpt: SerializedPlan
 
   // The following logic of `outputPartitioning` is copied from Spark `BroadcastHashJoinExec`.
   protected lazy val streamedPlan: SparkPlan = buildSide match {
     case BuildLeft => right
     case BuildRight => left
-  }
-
-  override lazy val outputPartitioning: Partitioning = {
-    joinType match {
-      case _: InnerLike if conf.broadcastHashJoinOutputPartitioningExpandLimit > 0 =>
-        streamedPlan.outputPartitioning match {
-          case h: HashPartitioning => expandOutputPartitioning(h)
-          case h: Expression if h.getClass.getName.contains("CoalescedHashPartitioning") =>
-            expandOutputPartitioning(h)
-          case c: PartitioningCollection => expandOutputPartitioning(c)
-          case other => other
-        }
-      case _ => streamedPlan.outputPartitioning
-    }
   }
 
   protected lazy val (buildKeys, streamedKeys) = {
@@ -798,20 +794,20 @@ case class CometBroadcastHashJoinExec(
     }
   }
 
-  // An one-to-many mapping from a streamed key to build keys.
-  private lazy val streamedKeyToBuildKeyMapping = {
-    val mapping = mutable.Map.empty[Expression, Seq[Expression]]
-    streamedKeys.zip(buildKeys).foreach { case (streamedKey, buildKey) =>
-      val key = streamedKey.canonicalized
-      mapping.get(key) match {
-        case Some(v) => mapping.put(key, v :+ buildKey)
-        case None => mapping.put(key, Seq(buildKey))
-      }
+  override lazy val outputPartitioning: Partitioning = {
+    joinType match {
+      case _: InnerLike if conf.broadcastHashJoinOutputPartitioningExpandLimit > 0 =>
+        streamedPlan.outputPartitioning match {
+          case h: HashPartitioning => expandOutputPartitioning(h)
+          case h: Expression if h.getClass.getName.contains("CoalescedHashPartitioning") =>
+            expandOutputPartitioning(h)
+          case c: PartitioningCollection => expandOutputPartitioning(c)
+          case other => other
+        }
+      case _ => streamedPlan.outputPartitioning
     }
-    mapping.toMap
   }
 
-  // Expands the given partitioning collection recursively.
   private def expandOutputPartitioning(
       partitioning: PartitioningCollection): PartitioningCollection = {
     PartitioningCollection(partitioning.partitionings.flatMap {
@@ -822,13 +818,6 @@ case class CometBroadcastHashJoinExec(
       case other => Seq(other)
     })
   }
-
-  // Expands the given hash partitioning by substituting streamed keys with build keys.
-  // For example, if the expressions for the given partitioning are Seq("a", "b", "c")
-  // where the streamed keys are Seq("b", "c") and the build keys are Seq("x", "y"),
-  // the expanded partitioning will have the following expressions:
-  // Seq("a", "b", "c"), Seq("a", "b", "y"), Seq("a", "x", "c"), Seq("a", "x", "y").
-  // The expanded expressions are returned as PartitioningCollection.
   private def expandOutputPartitioning(
       partitioning: Partitioning with Expression): PartitioningCollection = {
     val maxNumCombinations = conf.broadcastHashJoinOutputPartitioningExpandLimit
@@ -855,9 +844,17 @@ case class CometBroadcastHashJoinExec(
       generateExprCombinations(getHashPartitioningLikeExpressions(partitioning), Nil)
         .map(exprs => partitioning.withNewChildren(exprs).asInstanceOf[Partitioning]))
   }
-
-  override def withNewChildrenInternal(newLeft: SparkPlan, newRight: SparkPlan): SparkPlan =
-    this.copy(left = newLeft, right = newRight)
+  private lazy val streamedKeyToBuildKeyMapping = {
+    val mapping = mutable.Map.empty[Expression, Seq[Expression]]
+    streamedKeys.zip(buildKeys).foreach { case (streamedKey, buildKey) =>
+      val key = streamedKey.canonicalized
+      mapping.get(key) match {
+        case Some(v) => mapping.put(key, v :+ buildKey)
+        case None => mapping.put(key, Seq(buildKey))
+      }
+    }
+    mapping.toMap
+  }
 
   override def stringArgs: Iterator[Any] =
     Iterator(leftKeys, rightKeys, joinType, condition, buildSide, left, right)
@@ -882,6 +879,46 @@ case class CometBroadcastHashJoinExec(
 
   override lazy val metrics: Map[String, SQLMetric] =
     CometMetricNode.hashJoinMetrics(sparkContext)
+}
+
+case class CometBroadcastHashJoinExec(
+    override val nativeOp: Operator,
+    override val originalPlan: SparkPlan,
+    override val output: Seq[Attribute],
+    override val outputOrdering: Seq[SortOrder],
+    leftKeys: Seq[Expression],
+    rightKeys: Seq[Expression],
+    joinType: JoinType,
+    condition: Option[Expression],
+    buildSide: BuildSide,
+    override val left: SparkPlan,
+    override val right: SparkPlan,
+    override val serializedPlanOpt: SerializedPlan)
+    extends CometBroadcastHashLikeJoinExec {
+
+  override def withNewChildrenInternal(newLeft: SparkPlan, newRight: SparkPlan): SparkPlan =
+    this.copy(left = newLeft, right = newRight)
+
+}
+
+case class CometIntervalJoinExec(
+    override val nativeOp: Operator,
+    override val originalPlan: SparkPlan,
+    override val output: Seq[Attribute],
+    override val outputOrdering: Seq[SortOrder],
+    leftKeys: Seq[Expression],
+    rightKeys: Seq[Expression],
+    joinType: JoinType,
+    condition: Option[Expression],
+    buildSide: BuildSide,
+    override val left: SparkPlan,
+    override val right: SparkPlan,
+    override val serializedPlanOpt: SerializedPlan)
+    extends CometBroadcastHashLikeJoinExec {
+
+  override def withNewChildrenInternal(newLeft: SparkPlan, newRight: SparkPlan): SparkPlan =
+    this.copy(left = newLeft, right = newRight)
+
 }
 
 case class CometSortMergeJoinExec(

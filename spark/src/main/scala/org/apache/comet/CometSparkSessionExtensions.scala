@@ -28,6 +28,8 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.network.util.ByteUnit
 import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{Final, Partial}
+import org.apache.spark.sql.catalyst.optimizer.BuildLeft
+import org.apache.spark.sql.catalyst.plans.Inner
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.catalyst.trees.TreeNode
 import org.apache.spark.sql.comet._
@@ -503,13 +505,32 @@ class CometSparkSessionExtensions
               s"${explainChildNotNative(op)}")
           op
 
-        case op: IntervalTreeJoinOptimChromosome if !op.children.forall(isCometNative(_)) =>
+        case op: IntervalTreeJoinOptimChromosome
+          if isCometOperatorEnabled(conf, "broadcast_hash_join") && op.children.forall(isCometNative(_)) =>
           withInfo(
             op,
             "Comet  IntervalTreeBroadcastJoin extension disabled because " +
               "the following children are not native " +
               s"${explainChildNotNative(op)}")
-          op
+          val newOp = transform1(op)
+          newOp match {
+            case Some(nativeOp) =>
+              CometIntervalJoinExec(
+                nativeOp,
+                op,
+                op.output,
+                op.outputOrdering,
+                Seq.empty,
+                Seq.empty,
+                Inner,
+                Some(op.condition.head),
+                BuildLeft, // FIXME: hardcode
+                op.left,
+                op.right,
+                SerializedPlan(None))
+            case None =>
+              op
+          }
 
         case op: BroadcastHashJoinExec
             if isCometOperatorEnabled(conf, "broadcast_hash_join") &&
