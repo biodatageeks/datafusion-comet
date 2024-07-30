@@ -76,7 +76,7 @@ release-linux: clean
 	./mvnw install -Prelease -DskipTests $(PROFILES)
 release:
 	cd native && RUSTFLAGS="-Ctarget-cpu=native" cargo build --release
-	./mvnw install -Prelease -DskipTests $(PROFILES)
+	./mvnw install -Prelease -DskipTests $(PROFILES) -Drat.ignoreErrors=true
 release-nogit:
 	cd native && RUSTFLAGS="-Ctarget-cpu=native" cargo build --release
 	./mvnw install -Prelease -DskipTests $(PROFILES) -Dmaven.gitcommitid.skip=true

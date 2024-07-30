@@ -122,6 +122,7 @@ type PhyAggResult = Result<Vec<Arc<dyn AggregateExpr>>, ExecutionError>;
 type PhyExprResult = Result<Vec<(Arc<dyn PhysicalExpr>, String)>, ExecutionError>;
 type PartitionPhyExprResult = Result<Vec<Arc<dyn PhysicalExpr>>, ExecutionError>;
 
+#[derive(Debug)]
 struct JoinParameters {
     pub left: Arc<dyn ExecutionPlan>,
     pub right: Arc<dyn ExecutionPlan>,
@@ -984,7 +985,10 @@ impl PhysicalPlanner {
                     join.join_type,
                     &join.condition,
                 )?;
+                dbg!(&join_params);
+                dbg!(join.clone());
                 let filters = join_params.join_filter.as_ref().expect("must have filter");
+                dbg!("filters: {:?}", filters);
                 let intervals = parse_intervals(filters).expect("must have intervals");
                 let interval_join = Arc::new(IntervalJoinExec::try_new(
                     join_params.left,

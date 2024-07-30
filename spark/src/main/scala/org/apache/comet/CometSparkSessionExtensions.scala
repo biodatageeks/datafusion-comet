@@ -29,7 +29,6 @@ import org.apache.spark.network.util.ByteUnit
 import org.apache.spark.sql.{SparkSession, SparkSessionExtensions}
 import org.apache.spark.sql.catalyst.expressions.aggregate.{Final, Partial}
 import org.apache.spark.sql.catalyst.optimizer.BuildLeft
-import org.apache.spark.sql.catalyst.plans.Inner
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.catalyst.trees.TreeNode
 import org.apache.spark.sql.comet._
@@ -506,7 +505,8 @@ class CometSparkSessionExtensions
           op
 
         case op: IntervalTreeJoinOptimChromosome
-          if isCometOperatorEnabled(conf, "broadcast_hash_join") && op.children.forall(isCometNative(_)) =>
+            if isCometOperatorEnabled(conf, "broadcast_hash_join") && op.children.forall(
+              isCometNative(_)) =>
           withInfo(
             op,
             "Comet  IntervalTreeBroadcastJoin extension disabled because " +
@@ -522,8 +522,8 @@ class CometSparkSessionExtensions
                 op.outputOrdering,
                 Seq.empty,
                 Seq.empty,
-                Inner,
-                Some(op.condition.head),
+                op.joinType,
+                op.conditionExact,
                 BuildLeft, // FIXME: hardcode
                 op.left,
                 op.right,
