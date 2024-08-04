@@ -2877,6 +2877,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "scailist"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "26f80fcbd0b37d7a21dc505dacc82bc74a125f90467121c23472414abb50151b"
+
+[[package]]
 name = "scopeguard"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2903,9 +2909,9 @@ checksum = "a3f0bf26fd526d2a95683cd0f87bf103b8539e2ca1ef48ce002d67aad59aa0b4"
 [[package]]
 name = "sequila-core"
 version = "0.1.0"
+source = "git+ssh://git@github.com/biodatageeks/sequila-native.git#3380c4d2222d369b501cdbcc726f8f5887591259"
 dependencies = [
  "ahash",
- "arrow",
  "async-trait",
  "bio",
  "coitrees",
@@ -2919,6 +2925,7 @@ dependencies = [
  "parking_lot",
  "rstest",
  "rstest_reuse",
+ "scailist",
  "tokio",
 ]
 
