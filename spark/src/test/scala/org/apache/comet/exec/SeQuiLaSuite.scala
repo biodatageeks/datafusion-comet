@@ -40,17 +40,16 @@ class SeQuiLaSuite extends CometTestBase {
   def prepareData(): Unit = {
     val partNum = 8
     val chainRn4 = "/Users/mwiewior/research/data/AIListTestData/sequila-native/chainRn4.bed"
-    val chainVicPac2 = "/Users/mwiewior/research/data/AIListTestData/sequila-native/chainVicPac2.bed"
-    spark
-      .read
-      .options(Map("inferSchema"->"true", "header"->"true", "delimiter"->"\t"))
+    val chainVicPac2 =
+      "/Users/mwiewior/research/data/AIListTestData/sequila-native/chainVicPac2.bed"
+    spark.read
+      .options(Map("inferSchema" -> "true", "header" -> "true", "delimiter" -> "\t"))
       .csv(chainRn4)
       .repartition(partNum)
       .write
       .parquet("/Users/mwiewior/CLionProjects/sequila-native/sandbox/chainRn4.parquet")
-    spark
-      .read
-      .options(Map("inferSchema"->"true", "header"->"true", "delimiter"->"\t"))
+    spark.read
+      .options(Map("inferSchema" -> "true", "header" -> "true", "delimiter" -> "\t"))
       .csv(chainVicPac2)
       .repartition(partNum)
       .write
@@ -58,12 +57,11 @@ class SeQuiLaSuite extends CometTestBase {
 
   }
 
-  test("Prepare data"){
+  test("Prepare data") {
     prepareData()
   }
 
   test("SeQuiLaAnalyzer") {
-
 
     val ds3 = spark.read.parquet(
       "/Users/mwiewior/CLionProjects/sequila-native/sandbox/chainRn4.parquet/*.parquet")
