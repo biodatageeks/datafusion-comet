@@ -21,7 +21,7 @@ USER root
 
 # Installing JDK11 as the image comes with JRE
 RUN apt update \
-    && apt install -y curl \
+    && apt install -y curl git \
     && apt install -y openjdk-11-jdk \
     && apt clean
 
@@ -30,16 +30,19 @@ ENV PATH="/root/.cargo/bin:${PATH}"
 ENV RUSTFLAGS="-C debuginfo=line-tables-only -C incremental=false"
 ENV SPARK_VERSION=3.4
 ENV SCALA_VERSION=2.12
+ENV GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no"
 
 # copy source files to Docker image
 RUN mkdir /comet
 WORKDIR /comet
 
+RUN mkdir -p -m 0600 ~/.ssh && ssh-keyscan github.com >> ~/.ssh/known_hosts
+
 # build native code first so that this layer can be re-used
 # if only Scala code gets modified
 COPY rust-toolchain.toml /comet/rust-toolchain.toml
 COPY native /comet/native
-RUN cd native && RUSTFLAGS="-Ctarget-cpu=native" cargo build --release
+RUN --mount=type=ssh cd native && RUSTFLAGS="-Ctarget-cpu=native" cargo build --release
 
 # copy the rest of the project
 COPY .mvn /comet/.mvn
@@ -57,7 +60,7 @@ COPY pom.xml /comet/pom.xml
 
 # Pick the JDK instead of JRE to compile Comet
 RUN cd /comet \
-    && JAVA_HOME=$(readlink -f $(which javac) | sed "s/\/bin\/javac//") make release-nogit PROFILES="-Pspark-$SPARK_VERSION -Pscala-$SCALA_VERSION"
+    && JAVA_HOME=$(readlink -f $(which javac) | sed "s/\/bin\/javac//") make release-nogit PROFILES="-Pspark-$SPARK_VERSION"
 
 FROM apache/spark:3.4.3
 ENV SPARK_VERSION=3.4
