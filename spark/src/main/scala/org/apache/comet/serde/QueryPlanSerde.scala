@@ -2653,8 +2653,8 @@ object QueryPlanSerde extends Logging with ShimQueryPlanSerde with CometExprShim
             None
           }
         }
-      case join: IntervalTreeJoinOptimChromosome => {
-        val condition = join.condition.map { cond =>
+      case join: IntervalTreeJoinOptimChromosome =>
+        val condition = join.conditionExact.map { cond =>
           val condProto = exprToProto(cond, join.left.output ++ join.right.output)
           if (condProto.isEmpty) {
             withInfo(join, cond)
@@ -2676,8 +2676,8 @@ object QueryPlanSerde extends Logging with ShimQueryPlanSerde with CometExprShim
             return None
         }
 
-        val leftKeys = join.buildKeys.map(exprToProto(_, join.left.output))
-        val rightKeys = join.streamedKeys.map(exprToProto(_, join.right.output))
+        val leftKeys = List(join.condition(4)).map(exprToProto(_, join.left.output))
+        val rightKeys = List(join.condition(5)).map(exprToProto(_, join.right.output))
 
         if (leftKeys.forall(_.isDefined) &&
           rightKeys.forall(_.isDefined) &&
@@ -2695,7 +2695,7 @@ object QueryPlanSerde extends Logging with ShimQueryPlanSerde with CometExprShim
           withInfo(join, allExprs: _*)
           None
         }
-      }
+
 //
 //        val intervalJoinBuilder = OperatorOuterClass.IntervalJoin.newBuilder()
 //

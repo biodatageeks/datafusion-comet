@@ -985,10 +985,9 @@ impl PhysicalPlanner {
                     join.join_type,
                     &join.condition,
                 )?;
-                dbg!(&join_params);
-                dbg!(join.clone());
+
                 let filters = join_params.join_filter.as_ref().expect("must have filter");
-                dbg!("filters: {:?}", filters);
+
                 let intervals = parse_intervals(filters).expect("must have intervals");
                 let interval_join = Arc::new(IntervalJoinExec::try_new(
                     join_params.left,
@@ -1013,6 +1012,8 @@ impl PhysicalPlanner {
                     join.join_type,
                     &join.condition,
                 )?;
+                // dbg!(&join_params);
+                dbg!(&join);
                 let hash_join = Arc::new(HashJoinExec::try_new(
                     join_params.left,
                     join_params.right,

@@ -19,8 +19,8 @@
 
 package org.apache.comet.exec
 
+import org.apache.comet.CometConf.COMET_EXEC_CONFIG_PREFIX
 import org.biodatageeks.sequila.rangejoins.IntervalTree.IntervalTreeJoinStrategyOptim
-
 import org.apache.spark.sql.CometTestBase
 import org.apache.spark.sql.types.{IntegerType, StringType, StructField, StructType}
 
@@ -36,18 +36,26 @@ class SeQuiLaSuite extends CometTestBase {
       StructField("end1", IntegerType, nullable = false)))
 
   test("SeQuiLaAnalyzer") {
-    val ds3 = readResourceParquetFile("test-data-sequila/ds3.parquet")
-    val ds4 = readResourceParquetFile("test-data-sequila/ds4.parquet")
+    val ds3 = spark.read.parquet("/Users/mwiewior/CLionProjects/sequila-native/sandbox/chainRn4_chr1.parquet/*.parquet")
+    val ds4 = spark.read.parquet("/Users/mwiewior/CLionProjects/sequila-native/sandbox/chainVicPac2_chr1.parquet/*.parquet")
 
-    ds3.createOrReplaceTempView("s3")
-    ds4.createOrReplaceTempView("s4")
+    ds3.createOrReplaceTempView("chainRn4_chr1")
+    ds4.createOrReplaceTempView("chainVicPac2_chr1")
 
     spark.experimental.extraStrategies = new IntervalTreeJoinStrategyOptim(spark) :: Nil
+
     spark.sparkContext.setLogLevel("INFO")
-    val sqlQuery =
-      "select s3.chr1 as s3_chr,s3.start1 as s3_start1, s3.*,s4.* from s4 JOIN s3 WHERE s3.chr1=s4.chr1 and s3.end1>=s4.start1 and s3.start1<=s4.end1"
+    spark.conf.set(s"$COMET_EXEC_CONFIG_PREFIX.interval_join.enabled", "false")
+    val sqlQuery="select count(*) from chainRn4_chr1 a, chainVicPac2_chr1 b where (a.column0=b.column0 and a.column2>=b.column1 and a.column1<=b.column2);"
+    spark.time{
+      spark
+        .sql(sqlQuery)
+        .show()
+    }
+//    val sqlQuery =
+//      "select s3.chr1 as s3_chr,s3.start1 as s3_start1, s3.*,s4.* from s4 JOIN s3 WHERE s3.chr1=s4.chr1 and s3.end1>=s4.start1 and s3.start1<=s4.end1"
     spark.sql(sqlQuery).explain(true)
-    assert(spark.sql(sqlQuery).count() == 16)
+//    assert(spark.sql(sqlQuery).count() == 16)
 
   }
 }

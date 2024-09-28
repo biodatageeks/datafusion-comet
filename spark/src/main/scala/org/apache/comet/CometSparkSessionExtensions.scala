@@ -505,13 +505,8 @@ class CometSparkSessionExtensions
           op
 
         case op: IntervalTreeJoinOptimChromosome
-            if isCometOperatorEnabled(conf, "broadcast_hash_join") && op.children.forall(
+            if isCometOperatorEnabled(conf, "interval_join") && op.children.forall(
               isCometNative(_)) =>
-          withInfo(
-            op,
-            "Comet  IntervalTreeBroadcastJoin extension disabled because " +
-              "the following children are not native " +
-              s"${explainChildNotNative(op)}")
           val newOp = transform1(op)
           newOp match {
             case Some(nativeOp) =>
@@ -520,8 +515,8 @@ class CometSparkSessionExtensions
                 op,
                 op.output,
                 op.outputOrdering,
-                Seq.empty,
-                Seq.empty,
+                Seq(op.condition(4)),
+                Seq(op.condition(5)),
                 op.joinType,
                 op.conditionExact,
                 BuildLeft, // FIXME: hardcode
