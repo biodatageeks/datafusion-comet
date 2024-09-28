@@ -19,10 +19,12 @@
 
 package org.apache.comet.exec
 
-import org.apache.comet.CometConf.COMET_EXEC_CONFIG_PREFIX
 import org.biodatageeks.sequila.rangejoins.IntervalTree.IntervalTreeJoinStrategyOptim
+
 import org.apache.spark.sql.CometTestBase
 import org.apache.spark.sql.types.{IntegerType, StringType, StructField, StructType}
+
+import org.apache.comet.CometConf.COMET_EXEC_CONFIG_PREFIX
 
 class SeQuiLaSuite extends CometTestBase {
   val schema1: StructType = StructType(
@@ -35,19 +37,48 @@ class SeQuiLaSuite extends CometTestBase {
       StructField("start1", IntegerType, nullable = false),
       StructField("end1", IntegerType, nullable = false)))
 
-  test("SeQuiLaAnalyzer") {
-    val ds3 = spark.read.parquet("/Users/mwiewior/CLionProjects/sequila-native/sandbox/chainRn4_chr1.parquet/*.parquet")
-    val ds4 = spark.read.parquet("/Users/mwiewior/CLionProjects/sequila-native/sandbox/chainVicPac2_chr1.parquet/*.parquet")
+  def prepareData(): Unit = {
+    val partNum = 8
+    val chainRn4 = "/Users/mwiewior/research/data/AIListTestData/sequila-native/chainRn4.bed"
+    val chainVicPac2 = "/Users/mwiewior/research/data/AIListTestData/sequila-native/chainVicPac2.bed"
+    spark
+      .read
+      .options(Map("inferSchema"->"true", "header"->"true", "delimiter"->"\t"))
+      .csv(chainRn4)
+      .repartition(partNum)
+      .write
+      .parquet("/Users/mwiewior/CLionProjects/sequila-native/sandbox/chainRn4.parquet")
+    spark
+      .read
+      .options(Map("inferSchema"->"true", "header"->"true", "delimiter"->"\t"))
+      .csv(chainVicPac2)
+      .repartition(partNum)
+      .write
+      .parquet("/Users/mwiewior/CLionProjects/sequila-native/sandbox/chainVicPac2.parquet")
 
-    ds3.createOrReplaceTempView("chainRn4_chr1")
-    ds4.createOrReplaceTempView("chainVicPac2_chr1")
+  }
+
+  test("Prepare data"){
+    prepareData()
+  }
+
+  test("SeQuiLaAnalyzer") {
+
+
+    val ds3 = spark.read.parquet(
+      "/Users/mwiewior/CLionProjects/sequila-native/sandbox/chainRn4.parquet/*.parquet")
+    val ds4 = spark.read.parquet(
+      "/Users/mwiewior/CLionProjects/sequila-native/sandbox/chainVicPac2.parquet/*.parquet")
+
+    ds3.createOrReplaceTempView("chainRn4")
+    ds4.createOrReplaceTempView("chainVicPac2")
 
     spark.experimental.extraStrategies = new IntervalTreeJoinStrategyOptim(spark) :: Nil
 
-    spark.sparkContext.setLogLevel("INFO")
     spark.conf.set(s"$COMET_EXEC_CONFIG_PREFIX.interval_join.enabled", "false")
-    val sqlQuery="select count(*) from chainRn4_chr1 a, chainVicPac2_chr1 b where (a.column0=b.column0 and a.column2>=b.column1 and a.column1<=b.column2);"
-    spark.time{
+    val sqlQuery =
+      "select count(*) from chainVicPac2 a, chainRn4 b  where (a.column0=b.column0 and a.column2>=b.column1 and a.column1<=b.column2);"
+    spark.time {
       spark
         .sql(sqlQuery)
         .show()

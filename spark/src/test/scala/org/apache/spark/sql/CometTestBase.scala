@@ -19,13 +19,13 @@
 
 package org.apache.spark.sql
 
-import org.apache.comet.CometConf.COMET_EXEC_CONFIG_PREFIX
-
 import scala.concurrent.duration._
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe.TypeTag
 import scala.util.Try
+
 import org.scalatest.BeforeAndAfterEach
+
 import org.apache.commons.lang3.StringUtils
 import org.apache.hadoop.fs.Path
 import org.apache.parquet.column.ParquetProperties
@@ -44,6 +44,7 @@ import org.apache.spark.sql.internal._
 import org.apache.spark.sql.test._
 import org.apache.spark.sql.types.DecimalType
 import org.apache.spark.sql.types.StructType
+
 import org.apache.comet._
 import org.apache.comet.CometSparkSessionExtensions.isSpark34Plus
 import org.apache.comet.shims.ShimCometSparkSessionExtensions
@@ -75,12 +76,19 @@ abstract class CometTestBase
     conf.set(SQLConf.AUTO_BROADCASTJOIN_THRESHOLD.key, "1g")
     conf.set(SQLConf.ADAPTIVE_AUTO_BROADCASTJOIN_THRESHOLD.key, "1g")
     conf.set(SQLConf.COALESCE_PARTITIONS_ENABLED.key, "false")
-    conf.set(CometConf.COMET_ENABLED.key, "true")
+    conf.set(CometConf.COMET_ENABLED.key, "true") // on/off Comet
     conf.set(CometConf.COMET_EXEC_ENABLED.key, "true")
     conf.set(CometConf.COMET_EXEC_ALL_OPERATOR_ENABLED.key, "true")
     conf.set(CometConf.COMET_ROW_TO_COLUMNAR_ENABLED.key, "true")
     conf.set(CometConf.COMET_MEMORY_OVERHEAD.key, "2g")
-    conf
+    conf.set("spark.master", "local[8]") //num of threads
+    conf.set("spark.biodatageeks.rangejoin.useJoinOrder", "true") //use join order sequila
+    conf.set("spark.biodatageeks.rangejoin.maxBroadcastSize", "600000000") //600MB
+    conf.set("spark.datafusion.optimizer.repartition_joins", "true")
+//    conf.set("spark.sql.join.forceApplyShuffledHashJoin" , "true")
+//    conf.set("spark.sql.files.maxPartitionBytes", (16777216/2).toString)
+//    conf.set("spark.hadoop.mapred.max.split.size", (16777216).toString)
+//    conf.set("spark.sql.files.minPartitionNum", "2")
   }
 
   /**
