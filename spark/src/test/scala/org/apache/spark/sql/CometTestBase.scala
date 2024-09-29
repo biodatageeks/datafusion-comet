@@ -81,10 +81,13 @@ abstract class CometTestBase
     conf.set(CometConf.COMET_EXEC_ALL_OPERATOR_ENABLED.key, "true")
     conf.set(CometConf.COMET_ROW_TO_COLUMNAR_ENABLED.key, "true")
     conf.set(CometConf.COMET_MEMORY_OVERHEAD.key, "2g")
+    conf.set("spark.comet.exec.interval_join.disabled", "true") // on/off CometIntervalJoin
+    conf.set("spark.ui.enabled", "true")
     conf.set("spark.master", "local[8]") // num of threads
     conf.set("spark.biodatageeks.rangejoin.useJoinOrder", "true") // use join order sequila
     conf.set("spark.biodatageeks.rangejoin.maxBroadcastSize", "600000000") // 600MB
-    conf.set("spark.datafusion.optimizer.repartition_joins", "true")
+    conf.set("spark.datafusion.optimizer.repartition_joins", "false")
+    conf.set("spark.driver.memory", "16g")
 //    conf.set("spark.sql.join.forceApplyShuffledHashJoin" , "true")
 //    conf.set("spark.sql.files.maxPartitionBytes", (16777216/2).toString)
 //    conf.set("spark.hadoop.mapred.max.split.size", (16777216).toString)

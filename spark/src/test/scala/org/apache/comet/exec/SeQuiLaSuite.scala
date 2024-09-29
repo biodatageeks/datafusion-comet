@@ -24,8 +24,6 @@ import org.biodatageeks.sequila.rangejoins.IntervalTree.IntervalTreeJoinStrategy
 import org.apache.spark.sql.CometTestBase
 import org.apache.spark.sql.types.{IntegerType, StringType, StructField, StructType}
 
-import org.apache.comet.CometConf.COMET_EXEC_CONFIG_PREFIX
-
 class SeQuiLaSuite extends CometTestBase {
   val schema1: StructType = StructType(
     Seq(StructField("start1", IntegerType, nullable = false), StructField("end1", IntegerType)))
@@ -73,14 +71,14 @@ class SeQuiLaSuite extends CometTestBase {
 
     spark.experimental.extraStrategies = new IntervalTreeJoinStrategyOptim(spark) :: Nil
 
-    spark.conf.set(s"$COMET_EXEC_CONFIG_PREFIX.interval_join.enabled", "false")
+//    spark.conf.set(s"$COMET_EXEC_CONFIG_PREFIX.interval_join.enabled", "false")
     val sqlQuery =
       "select count(*) from chainVicPac2 a, chainRn4 b  where (a.column0=b.column0 and a.column2>=b.column1 and a.column1<=b.column2);"
-    spark.time {
-      spark
-        .sql(sqlQuery)
-        .show()
-    }
+//    spark.time {
+//      spark
+//        .sql(sqlQuery)
+//        .show()
+//    }
 //    val sqlQuery =
 //      "select s3.chr1 as s3_chr,s3.start1 as s3_start1, s3.*,s4.* from s4 JOIN s3 WHERE s3.chr1=s4.chr1 and s3.end1>=s4.start1 and s3.start1<=s4.end1"
     spark.sql(sqlQuery).explain(true)
