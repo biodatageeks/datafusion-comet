@@ -69,3 +69,8 @@ USER root
 
 # note the use of a wildcard in the file name so that this works with both snapshot and final release versions
 COPY --from=builder  /comet/spark/target/comet-spark-spark${SPARK_VERSION}_$SCALA_VERSION-0.1.0*.jar $SPARK_HOME/jars
+RUN wget -q -O \
+    /opt/spark/jars/gcs-connector-hadoop3-2.2.17-shaded.jar \
+    https://repo1.maven.org/maven2/com/google/cloud/bigdataoss/gcs-connector/hadoop3-2.2.17/gcs-connector-hadoop3-2.2.17-shaded.jar
+RUN echo :quit | /opt/spark/bin/spark-shell --master local[1] --packages org.biodatageeks:sequila_2.12:1.3.6 --conf spark.jars.ivy=/opt/spark/.ivy2
+

@@ -19,7 +19,7 @@
 
 package org.apache.comet
 
-import scala.math.random
+import org.biodatageeks.sequila.rangejoins.IntervalTree.IntervalTreeJoinStrategyOptim
 
 import org.apache.spark.sql.SparkSession
 
@@ -30,19 +30,33 @@ object SeQuiLaComet {
       .builder()
       .appName("SeQuiLaComet")
       .getOrCreate()
-    val slices = if (args.length > 0) args(0).toInt else 2
-    val n = math.min(100000L * slices, Int.MaxValue).toInt // avoid overflow
-    val count = spark.sparkContext
-      .parallelize(1 until n, slices)
-      .map { i =>
-        val x = random() * 2 - 1
-        val y = random() * 2 - 1
-        if (x * x + y * y <= 1) 1 else 0
+    spark.experimental.extraStrategies = new IntervalTreeJoinStrategyOptim(spark) :: Nil
+    if (args.length < 2) {
+      // scalastyle:off println
+      println("Usage: SeQuiLaComet <number_of_slices>")
+      // scalastyle:on println
+      System.exit(1)
+    } else {
+      val tablePathLeft = args(0)
+      val tablePathRight = args(1)
+      val ds1 = spark.read.parquet(tablePathLeft)
+      val ds2 = spark.read.parquet(tablePathRight)
+      ds1.createOrReplaceTempView("tableLeft")
+      ds2.createOrReplaceTempView("tableRight")
+      val sqlQuery =
+        "select count(*) from tableLeft a, tableRight b  " +
+          "where (a.column0=b.column0 and a.column2>=b.column1 and a.column1<=b.column2);"
+      spark.sql(sqlQuery).explain(true)
+      spark.time {
+        spark
+          .sql(sqlQuery)
+          .show()
       }
-      .reduce(_ + _)
-    // scalastyle:off println
-    println(s"Pi is roughly ${4.0 * count / (n - 1)}")
-    // scalastyle:on
-    spark.stop()
+
+      // scalastyle:off println
+      println("Pi is roughly ")
+      // scalastyle:on
+      spark.stop()
+    }
   }
 }
